@@ -22,6 +22,7 @@ import {
   updateCardReview 
 } from './services/storageService';
 import { isCardDue } from './services/sm2Service';
+import { generateSmartCheckpoint } from './services/tutorService';
 
 export default function App() {
   // Navigation & Preferences State
@@ -92,7 +93,7 @@ export default function App() {
     if (!chunk) return null;
 
     // Check if the current document has pre-loaded curated checkpoints for this chunk
-    if (currentDoc.preloadedCheckpoints) {
+    if (currentDoc?.preloadedCheckpoints) {
       const found = currentDoc.preloadedCheckpoints.find(cp => cp.chunkIndex === chunkIdx);
       if (found) {
         return {
@@ -103,20 +104,12 @@ export default function App() {
       }
     }
 
-    // Otherwise generate dynamic checkpoint question from chunk keywords
-    const primaryTerm = chunk.keyTerms?.[0] || chunk.title.replace(/Section \d+:?\s*/i, '');
+    // Generate a smart checkpoint from the actual chunk content
+    const generated = generateSmartCheckpoint(chunk);
     return {
       chunkIndex: chunkIdx,
       chunkTitle: chunk.title,
-      question: `Which statement best reflects the mechanism discussed in "${chunk.title}"?`,
-      options: [
-        `It establishes correctness regarding ${primaryTerm} by enforcing strict invariants.`,
-        `It bypasses memory protection to allow unauthenticated access to registers.`,
-        `It converts all writes to random I/O seek operations without caching.`,
-        `It disables network replication across the cluster.`
-      ],
-      correctIndex: 0,
-      explanation: `Section "${chunk.title}" highlights how ${primaryTerm} maintains system consistency.`
+      ...generated
     };
   }, [chunks, currentDoc]);
 
@@ -292,28 +285,6 @@ export default function App() {
               onTriggerCheckpointManual={handleTriggerManualCheckpoint}
               checkpointsAnswered={checkpointsAnswered}
             />
-
-            {/* Real-time Copilot Avatar Companion */}
-            <AvatarCompanion 
-              isAvatarEnabled={isAvatarEnabled}
-              engagementState={engagementState}
-              activeNudge={activeNudge}
-              onDismissNudge={() => {
-                setActiveNudge(null);
-                trackerRef.current?.recordNudgeDismissed();
-              }}
-              onEngageNudge={() => {
-                setActiveNudge(null);
-                trackerRef.current?.recordNudgeEngaged();
-              }}
-              onTriggerCheckpoint={() => {
-                handleTriggerManualCheckpoint(activeChunkIndex);
-              }}
-              sensitivity={settings.sensitivity}
-              onChangeSensitivity={handleChangeSensitivity}
-              telemetry={telemetry}
-              activeChunk={chunks[activeChunkIndex]}
-            />
           </div>
         )}
 
@@ -389,6 +360,29 @@ export default function App() {
           onClose={() => setIsSettingsOpen(false)}
         />
       )}
+      {/* Global floating AI Tutor - visible across all tabs */}
+      <AvatarCompanion 
+        isAvatarEnabled={isAvatarEnabled}
+        engagementState={engagementState}
+        activeNudge={activeNudge}
+        onDismissNudge={() => {
+          setActiveNudge(null);
+          trackerRef.current?.recordNudgeDismissed();
+        }}
+        onEngageNudge={() => {
+          setActiveNudge(null);
+          trackerRef.current?.recordNudgeEngaged();
+        }}
+        onTriggerCheckpoint={() => {
+          handleTriggerManualCheckpoint(activeChunkIndex);
+        }}
+        sensitivity={settings.sensitivity}
+        onChangeSensitivity={handleChangeSensitivity}
+        telemetry={telemetry}
+        activeChunk={chunks[activeChunkIndex]}
+        chunks={chunks}
+        geminiApiKey={settings.geminiApiKey}
+      />
     </div>
   );
 }
