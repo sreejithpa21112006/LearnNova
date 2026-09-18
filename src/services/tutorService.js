@@ -172,19 +172,19 @@ export function answerWithNLP(question, chunks, activeChunkIndex) {
   const top = candidates.slice(0, 3);
   const sourceTitle = top[0].chunkTitle;
 
-  // Build response
+  // Build clean, structured bullet point response instead of a solid paragraph wall
   const isActiveChunk = top[0].chunkIdx === activeChunkIndex;
-  const locationNote = isActiveChunk
-    ? "Right in the section you're reading"
-    : `From "${sourceTitle}"`;
+  const leadIn = isActiveChunk
+    ? `Key insights from this section:`
+    : `Key insights from "${sourceTitle}":`;
 
-  const answer = top.map(c => c.sentence).join(' ');
+  const bullets = top.map(c => `• ${c.sentence.trim()}`).join('\n\n');
 
-  return `${locationNote}:\n\n"${answer}"`;
+  return `${leadIn}\n\n${bullets}`;
 }
 
 /**
- * Gemini API answer: sends context + question, returns streamed text
+ * Gemini API answer: sends context + question, returns structured bullet points
  */
 export async function answerWithGemini(question, chunks, activeChunkIndex, apiKey) {
   const contextChunks = [
@@ -197,9 +197,14 @@ export async function answerWithGemini(question, chunks, activeChunkIndex, apiKe
     .map(c => `[Section: ${c.title}]\n${c.content}`)
     .join('\n\n---\n\n');
 
-  const prompt = `You are a concise, helpful AI tutor embedded in a reading assistant app called LearnNova. The student is reading a document and has asked you a question.
+  const prompt = `You are an adaptive, high-yield AI study tutor in the LearnNova study app. The student is reading and asked you a question.
 
-Your job is to answer their question using ONLY the document excerpts provided below. Be direct and educational. Keep your answer under 4 sentences unless the question requires detail. Do not make up information not present in the excerpts.
+CRITICAL FORMATTING RULES:
+1. NEVER respond in a dense paragraph block.
+2. Start with a direct, single-sentence summary answering the question.
+3. Break down the core explanation into 2 to 3 concise, high-yield bullet points (use "• ").
+4. Keep each bullet point under 20 words.
+5. Use ONLY the provided document excerpts. If the answer is not present, state so concisely.
 
 --- DOCUMENT EXCERPTS ---
 ${context}
@@ -207,7 +212,7 @@ ${context}
 
 Student question: ${question}
 
-Answer:`;
+Response:`;
 
   try {
     const response = await fetch(

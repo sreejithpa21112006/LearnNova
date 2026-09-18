@@ -15,13 +15,18 @@ const DEFAULT_SETTINGS = {
   sensitivity: "medium", // 'low' | 'medium' | 'high'
   isAvatarEnabled: true,
   cardDensity: "medium", // 'low' | 'medium' | 'high'
-  geminiApiKey: ""
+  geminiApiKey: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) || ""
 };
 
 export function getSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      geminiApiKey: parsed.geminiApiKey || DEFAULT_SETTINGS.geminiApiKey
+    };
   } catch (e) {
     return DEFAULT_SETTINGS;
   }

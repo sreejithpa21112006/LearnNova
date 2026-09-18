@@ -110,21 +110,60 @@ export default function SettingsModal({
             </select>
           </div>
 
-          {/* Optional Gemini API Key */}
-          <div className="form-group">
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Key size={14} />
-              <span>Optional Gemini API Key:</span>
-            </label>
-            <input 
-              type="password"
-              placeholder="AIzaSy... (leave blank to use built-in 100% offline engine)"
-              value={formData.geminiApiKey || ''}
-              onChange={(e) => setFormData({ ...formData, geminiApiKey: e.target.value })}
-              className="form-input" 
-            />
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-3)', margin: 0 }}>
-              LearnNova includes a built-in NLP heuristics engine that works 100% offline. Adding a key enables live generative LLM synthesis.
+          {/* Gemini API Key */}
+          <div className="form-group" style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 'var(--r-lg)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                <Key size={14} color="var(--accent)" />
+                <span style={{ fontWeight: 600 }}>Gemini API Key</span>
+              </label>
+              {formData.geminiApiKey ? (
+                <span style={{ fontSize: '0.72rem', color: 'var(--green)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={12} /> Key Connected
+                </span>
+              ) : (
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: '0.74rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}
+                >
+                  Get free key ↗
+                </a>
+              )}
+            </div>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input 
+                type="text"
+                placeholder="AIzaSy... (paste your Gemini API key here)"
+                value={formData.geminiApiKey || ''}
+                onChange={(e) => setFormData({ ...formData, geminiApiKey: e.target.value.trim() })}
+                className="form-input" 
+                style={{ width: '100%', paddingRight: '36px', fontFamily: 'var(--mono)', fontSize: '0.82rem' }}
+              />
+              {formData.geminiApiKey && (
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, geminiApiKey: '' })}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-3)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '2px'
+                  }}
+                  title="Clear key"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <p style={{ fontSize: '0.76rem', color: 'var(--text-3)', marginTop: '8px', lineHeight: 1.45 }}>
+              Enter your Gemini API key to unlock full conversational AI answers, structured bullet points, and high-yield synthesis. Leave blank to use the built-in offline NLP engine.
             </p>
           </div>
 
