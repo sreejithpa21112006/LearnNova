@@ -81,18 +81,7 @@ export default function CheckpointModal({
                 onClick={() => handleSelectOption(idx)}
                 disabled={isAnswered}
               >
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  background: 'var(--surface-2)',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  flexShrink: 0
-                }}>
+                <span className="checkpoint-opt-letter">
                   {String.fromCharCode(65 + idx)}
                 </span>
                 <span style={{ flex: 1 }}>{opt}</span>

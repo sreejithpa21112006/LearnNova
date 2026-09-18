@@ -27,7 +27,13 @@ import { generateSmartCheckpoint } from './services/tutorService';
 export default function App() {
   // Navigation & Preferences State
   const [activeTab, setActiveTab] = useState('read'); // 'read' | 'studio' | 'study' | 'decks'
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem('learnnova_theme') || 'dark';
+    } catch (e) {
+      return 'dark';
+    }
+  });
   const [settings, setSettings] = useState(getSettings());
   const [isAvatarEnabled, setIsAvatarEnabled] = useState(settings.isAvatarEnabled !== false);
 
@@ -58,9 +64,12 @@ export default function App() {
   // Refs
   const trackerRef = useRef(null);
 
-  // Sync theme to DOM
+  // Sync theme to DOM & localStorage
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('learnnova_theme', theme);
+    } catch (e) {}
   }, [theme]);
 
   // Load Decks and initialize first deck
@@ -104,8 +113,8 @@ export default function App() {
       }
     }
 
-    // Generate a smart checkpoint from the actual chunk content
-    const generated = generateSmartCheckpoint(chunk);
+    // Generate a smart, length-balanced checkpoint from the actual chunk content
+    const generated = generateSmartCheckpoint(chunk, chunks);
     return {
       chunkIndex: chunkIdx,
       chunkTitle: chunk.title,

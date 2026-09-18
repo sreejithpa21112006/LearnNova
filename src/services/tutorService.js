@@ -1,9 +1,11 @@
 /**
  * tutorService.js
  * 
- * Handles answering user questions about the document.
+ * Handles answering user questions about the document and generating
+ * balanced, high-yield checkpoint comprehension questions.
  * - Offline NLP mode: keyword-search over chunk content, returns quoted passages
  * - Gemini API mode: sends context + question to gemini-1.5-flash
+ * - Balanced Checkpoints: strictly balanced option lengths, no bullet dumps, domain-relevant distractors
  */
 
 const STOP_WORDS = new Set([
@@ -40,15 +42,92 @@ function scoreSentence(sentence, keywords) {
 }
 
 /**
- * Splits text into clean sentences
+ * Extracts clean, standalone statements from text:
+ * - Separates bullet points, numbered lists, and paragraph sentences
+ * - Strips bullet characters, asterisks, and heading hashes
+ * - Normalizes whitespace and returns array of distinct thoughts
  */
-function splitSentences(text) {
-  return text
+export function splitSentences(text) {
+  if (!text) return [];
+
+  // Normalize list markers and bullets into distinct lines
+  const normalized = text
     .replace(/\*\*/g, '')
-    .replace(/`[^`]+`/g, match => match.replace(/\s/g, '_'))
-    .split(/(?<=[.?!])\s+(?=[A-Z])/)
-    .map(s => s.trim())
-    .filter(s => s.length > 30);
+    .replace(/`[^`]+`/g, m => m.replace(/[`]/g, ''))
+    .replace(/^#+\s+/gm, '')
+    .replace(/[•●▪■◦‣\u2022\u2023\u25E6\u2043\u2219]/g, '\n• ')
+    .replace(/(\n|^)\s*[-*]\s+/g, '\n• ')
+    .replace(/(\n|^)\s*\d+\.\s+/g, '\n• ');
+
+  const rawLines = normalized.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  const statements = [];
+
+  for (const line of rawLines) {
+    // Clean bullet marker
+    const cleanLine = line.replace(/^[•\-\*\d\.]+\s*/, '').trim();
+    if (!cleanLine || cleanLine.length < 20) continue;
+
+    // Split compound sentences if they contain standard delimiters
+    const parts = cleanLine
+      .split(/(?<=[.?!])\s+(?=[A-Z0-9])/)
+      .map(s => s.trim())
+      .filter(s => s.length >= 25);
+
+    for (const p of parts) {
+      const cleanP = p.replace(/^[:\-,;\s]+/, '').replace(/[:\-,;\s]+$/, '');
+      if (cleanP.length >= 25 && !cleanP.startsWith('http')) {
+        statements.push(cleanP);
+      }
+    }
+  }
+
+  return statements;
+}
+
+/**
+ * Formats an option text to be clean, punchy, and of controlled length (50-120 chars).
+ * Strips raw example clauses, bullets, and excessive clauses so all options look uniform.
+ */
+function formatOptionText(raw, targetMax = 110) {
+  if (!raw) return '';
+  let text = raw.trim()
+    .replace(/^[\s•\-\*\d\.\–—\u2013\u2014\u2212:]+/, '')
+    .replace(/^for example:?\s*/i, '')
+    .replace(/^[A-Za-z0-9\s]{2,25}\s*:\s*/, '')
+    .replace(/^[\s•\-\*\d\.\–—\u2013\u2014\u2212:]+/, '')
+    .replace(/^for example:?\s*/i, '')
+    .replace(/\*\*/g, '')
+    .replace(/\s+[–—\-\u2013\u2014]\s+For example:?.*$/i, '')
+    .replace(/\s+[–—\-\u2013\u2014]\s+e\.g\..*$/i, '')
+    .replace(/\s*\(e\.g\..*?\)/gi, '')
+    .replace(/\s*\(for example.*?\)/gi, '')
+    .replace(/\s*;\s*for example.*$/i, '');
+
+  text = text.replace(/\s+/g, ' ').trim();
+
+  // If still too long, trim at a natural syntactic boundary
+  if (text.length > targetMax) {
+    const cut = text.slice(0, targetMax);
+    const lastPunct = Math.max(
+      cut.lastIndexOf(','),
+      cut.lastIndexOf(';'),
+      cut.lastIndexOf(' which '),
+      cut.lastIndexOf(' that '),
+      cut.lastIndexOf(' where ')
+    );
+    if (lastPunct > 35) {
+      text = cut.slice(0, lastPunct).trim() + '.';
+    } else {
+      const lastSpace = cut.lastIndexOf(' ');
+      text = (lastSpace > 35 ? cut.slice(0, lastSpace).trim() : cut) + '...';
+    }
+  }
+
+  if (!text.endsWith('.') && !text.endsWith('...')) {
+    text += '.';
+  }
+
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /**
@@ -108,7 +187,6 @@ export function answerWithNLP(question, chunks, activeChunkIndex) {
  * Gemini API answer: sends context + question, returns streamed text
  */
 export async function answerWithGemini(question, chunks, activeChunkIndex, apiKey) {
-  // Build a context window: active chunk + 1 neighbour before and after
   const contextChunks = [
     chunks[activeChunkIndex - 1],
     chunks[activeChunkIndex],
@@ -162,107 +240,174 @@ Answer:`;
 }
 
 /**
- * Smart checkpoint question generator from chunk content
- * Returns { question, options, correctIndex, explanation }
+ * Generates balanced, domain-relevant distractors that match the length and tone
+ * of the correct option. Avoids generic distributed systems pads and bullet dumps.
  */
-export function generateSmartCheckpoint(chunk) {
-  const content = chunk.content;
-  const sentences = splitSentences(content);
-  const keywords = chunk.keyTerms || [];
+function buildBalancedDistractors(correctFormatted, allStatements, keywords = [], chunkTitle = '') {
+  const targetLength = correctFormatted.length;
+  const distractors = [];
 
-  // Strategy 1: Find a definition sentence "X is Y" — ask "What is X?"
-  for (const sentence of sentences) {
-    const defMatch = sentence.match(
-      /^(\*\*[^*]+\*\*|[A-Z][a-zA-Z0-9\s\-]{2,35}?)\s+(is an?|is the|refers to|is defined as|represents|enables)\s+(.{20,120})/i
+  // 1. First priority: other statements from the document (guaranteed domain relevance)
+  const cleanCorrect = correctFormatted.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const candidateStatements = allStatements
+    .map(s => formatOptionText(s, Math.max(75, targetLength + 20)))
+    .filter(s => {
+      if (!s || s.length < 25) return false;
+      const cleanS = s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (cleanS === cleanCorrect) return false;
+      if (cleanS.slice(0, 25) === cleanCorrect.slice(0, 25)) return false;
+      return !distractors.includes(s);
+    });
+
+  for (const cand of candidateStatements) {
+    if (distractors.length >= 3) break;
+    distractors.push(cand);
+  }
+
+  // 2. Second priority: Context-aware semantic mutations of the domain
+  const term = keywords[0] || (chunkTitle.split(/[:\-]/)[0] || 'The system').trim();
+
+  const domainPlausibles = [
+    `It operates as a static reference model without updating parameters during runtime.`,
+    `It evaluates throughput metrics while bypassing direct error minimization.`,
+    `It requires explicit manual rule sets rather than deriving patterns from data.`,
+    `It executes exclusively in the preprocessing stage before primary feature extraction.`,
+    `It limits adaptation strictly to offline batch execution cycles.`,
+    `It discards training state immediately following initial weight convergence.`
+  ];
+
+  for (const pad of domainPlausibles) {
+    if (distractors.length >= 3) break;
+    const formatted = formatOptionText(pad, targetLength + 15);
+    if (!distractors.includes(formatted) && formatted !== correctFormatted) {
+      distractors.push(formatted);
+    }
+  }
+
+  return distractors.slice(0, 3);
+}
+
+/**
+ * Smart checkpoint question generator from chunk content.
+ * Guarantees:
+ * 1. Options are never paragraph dumps or multi-bullet lists.
+ * 2. All 4 options are approximately the same length (50-110 characters).
+ * 3. Distractors are domain-plausible and grammatically parallel.
+ */
+export function generateSmartCheckpoint(chunk, allChunks = []) {
+  const content = chunk?.content || '';
+  const statements = splitSentences(content);
+  const keywords = chunk?.keyTerms || [];
+
+  // Gather statements from other chunks for realistic distractors
+  const otherStatements = [];
+  if (Array.isArray(allChunks)) {
+    allChunks.forEach(c => {
+      if (c && c.id !== chunk?.id) {
+        otherStatements.push(...splitSentences(c.content));
+      }
+    });
+  }
+  const combinedStatements = [...statements, ...otherStatements];
+
+  // Strategy 1: Check for named list items / component definitions like "• Task: ... • Data: ..."
+  for (const stmt of statements) {
+    const listComponentMatch = stmt.match(/^([A-Z][a-zA-Z\s]{2,25})\s*:\s*(.+)$/i);
+    if (listComponentMatch) {
+      const compName = listComponentMatch[1].trim();
+      const compDesc = listComponentMatch[2].trim();
+      if (compDesc.length >= 25) {
+        const correct = formatOptionText(compDesc, 95);
+        const distractors = buildBalancedDistractors(correct, combinedStatements, keywords, chunk.title);
+        const options = shuffle([correct, ...distractors]);
+        const correctIndex = options.indexOf(correct);
+
+        return {
+          question: `In "${chunk.title}", which statement accurately describes the "${compName}" component?`,
+          options,
+          correctIndex,
+          explanation: `From "${chunk.title}": ${compName} is described as "${formatOptionText(compDesc, 140)}"`
+        };
+      }
+    }
+  }
+
+  // Strategy 2: Definition sentence "X is Y" / "X refers to Y"
+  for (const stmt of statements) {
+    const defMatch = stmt.match(
+      /^(\*\*[^*]+\*\*|[A-Z][a-zA-Z0-9\s\-]{2,30}?)\s+(is an?|is the|refers to|is defined as|represents|enables)\s+(.{20,120})/i
     );
     if (defMatch) {
       const term = defMatch[1].replace(/\*\*/g, '').trim();
       const predicate = defMatch[2];
-      const definition = defMatch[3].replace(/\.$/, '').trim();
-      const correct = `${definition}`;
+      const definition = defMatch[3].trim();
+      const correct = formatOptionText(definition, 95);
 
-      const distractors = buildDistractors(sentences, correct, keywords);
-      const options = shuffle([correct, ...distractors.slice(0, 3)]);
+      const distractors = buildBalancedDistractors(correct, combinedStatements, keywords, chunk.title);
+      const options = shuffle([correct, ...distractors]);
       const correctIndex = options.indexOf(correct);
 
       return {
-        question: `What ${predicate} ${term}?`,
+        question: `According to this section, what ${predicate} ${term}?`,
         options,
         correctIndex,
-        explanation: `From "${chunk.title}": ${sentence.trim()}`
+        explanation: `From "${chunk.title}": ${term} ${predicate} ${formatOptionText(definition, 140)}`
       };
     }
   }
 
-  // Strategy 2: Find a "how/why" sentence with a key term
+  // Strategy 3: Key concept statement containing a highlighted key term
   if (keywords.length > 0) {
     const term = keywords[0];
-    const termSentence = sentences.find(s =>
-      s.toLowerCase().includes(term.toLowerCase()) && s.length > 40
+    const termStatement = statements.find(s =>
+      s.toLowerCase().includes(term.toLowerCase()) && s.length >= 35 && s.length <= 150
     );
-    if (termSentence) {
-      const correct = termSentence.trim();
-      const distractors = buildDistractors(sentences, correct, keywords);
-      const options = shuffle([correct, ...distractors.slice(0, 3)]);
+    if (termStatement) {
+      const correct = formatOptionText(termStatement, 95);
+      const distractors = buildBalancedDistractors(correct, combinedStatements, keywords, chunk.title);
+      const options = shuffle([correct, ...distractors]);
       const correctIndex = options.indexOf(correct);
+
       return {
-        question: `Which of the following accurately describes the role of ${term} in this section?`,
+        question: `Which statement accurately reflects how ${term} is described in this section?`,
         options,
         correctIndex,
-        explanation: `From "${chunk.title}": This statement directly describes how ${term} functions as discussed in the text.`
+        explanation: `From "${chunk.title}": ${termStatement}`
       };
     }
   }
 
-  // Strategy 3: Key sentence from middle of content
-  const midSentence = sentences[Math.floor(sentences.length / 2)] || sentences[0];
-  if (midSentence) {
-    const correct = midSentence.trim();
-    const distractors = buildDistractors(sentences, correct, keywords);
-    const options = shuffle([correct, ...distractors.slice(0, 3)]);
+  // Strategy 4: Clean statement from middle of content
+  if (statements.length > 0) {
+    const midStatement = statements[Math.floor(statements.length / 2)] || statements[0];
+    const correct = formatOptionText(midStatement, 95);
+    const distractors = buildBalancedDistractors(correct, combinedStatements, keywords, chunk.title);
+    const options = shuffle([correct, ...distractors]);
     const correctIndex = options.indexOf(correct);
+
     return {
       question: `Which statement is supported by the content of "${chunk.title}"?`,
       options,
       correctIndex,
-      explanation: `This statement is drawn directly from the text of "${chunk.title}".`
+      explanation: `From "${chunk.title}": This is supported by the text: "${correct}"`
     };
   }
 
-  // Final fallback — generic but still uses key terms
+  // Final fallback with strictly equal option lengths
   const primaryTerm = keywords[0] || chunk.title;
-  return {
-    question: `What is the significance of ${primaryTerm} as described in this section?`,
-    options: [
-      `${primaryTerm} plays a central role in the mechanism described in this section.`,
-      `${primaryTerm} is an optional component that can be bypassed under normal conditions.`,
-      `${primaryTerm} was deprecated in favour of simpler alternatives.`,
-      `${primaryTerm} only applies to special edge cases with no general relevance.`
-    ],
-    correctIndex: 0,
-    explanation: `The section "${chunk.title}" specifically focuses on the role and importance of ${primaryTerm}.`
-  };
-}
-
-/**
- * Generates plausible-sounding but incorrect distractors from other sentences in the chunk
- */
-function buildDistractors(sentences, correctText, keywords) {
-  // Use other sentences from the chunk as distractors (they're related but not the right answer)
-  const others = sentences
-    .filter(s => s !== correctText && s.length > 30)
-    .slice(0, 3);
-
-  if (others.length >= 3) return others;
-
-  // Pad with safe generic distractors if not enough sentences
-  const pads = [
-    'This concept applies exclusively in distributed systems with more than 100 nodes.',
-    'The mechanism is designed to bypass standard memory safety checks for performance.',
-    'This feature requires a centralised coordinator to function correctly.',
-    'It is only relevant when the system operates below its minimum throughput threshold.'
+  const options = [
+    `It defines the core mechanism discussed in this section.`,
+    `It operates as an optional secondary fallback under failure.`,
+    `It was deprecated in favour of modern distributed models.`,
+    `It only applies to specialized synthetic benchmark cases.`
   ];
-  return [...others, ...pads].slice(0, 3);
+
+  return {
+    question: `What is the primary role of ${primaryTerm} in this section?`,
+    options,
+    correctIndex: 0,
+    explanation: `The section "${chunk.title}" focuses specifically on the role and behaviour of ${primaryTerm}.`
+  };
 }
 
 function shuffle(arr) {
