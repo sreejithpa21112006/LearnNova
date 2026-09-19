@@ -10,13 +10,13 @@ import {
   X 
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { awardXp } from '../../services/gamificationService';
-import { shuffleQuizQuestion } from '../../services/tutorService';
-import { saveStudyActivity } from '../../services/storageService';
+import { awardXp } from '../services/gamificationService';
+import { shuffleQuizQuestion } from '../services/tutorService';
+import { saveStudyActivity } from '../services/storageService';
 
 export default function PracticeExamModal({
   quiz = [],
-  title = "Lecture Practice Exam",
+  title = "Practice Exam",
   onClose,
   onComplete
 }) {
@@ -162,8 +162,8 @@ export default function PracticeExamModal({
                       {String.fromCharCode(65 + optIdx)}
                     </span>
                     <span className="opt-text">{opt}</span>
-                    {hasAnsweredCurrent && isCorrect && <CheckCircle2 size={16} color="#10b981" />}
-                    {hasAnsweredCurrent && isSelected && !isCorrect && <XCircle size={16} color="#ef4444" />}
+                    {hasAnsweredCurrent && isCorrect && <CheckCircle2 size={16} color="var(--accent)" />}
+                    {hasAnsweredCurrent && isSelected && !isCorrect && <XCircle size={16} color="var(--accent)" />}
                   </button>
                 );
               })}
@@ -172,7 +172,7 @@ export default function PracticeExamModal({
             {/* Answer Rationale */}
             {hasAnsweredCurrent && (
               <div className="quiz-rationale-box">
-                <span style={{ fontWeight: 700, fontSize: '0.78rem', color: selectedOption === currentQ.correctIndex ? 'var(--accent)' : 'var(--text-2)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                   {selectedOption === currentQ.correctIndex ? (
                     <>
                       <CheckCircle2 size={13} color="var(--accent)" />
@@ -203,7 +203,7 @@ export default function PracticeExamModal({
         ) : (
           /* Results View */
           <div style={{ textAlign: 'center', padding: '24px 10px' }}>
-            <div style={{ display: 'inline-flex', padding: '16px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', marginBottom: '14px' }}>
+            <div style={{ display: 'inline-flex', padding: '16px', borderRadius: '50%', background: 'rgba(127, 29, 58, 0.08)', marginBottom: '14px' }}>
               <Award size={42} color="var(--accent)" />
             </div>
             <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '6px' }}>
@@ -218,7 +218,7 @@ export default function PracticeExamModal({
                 <RotateCcw size={15} /> Try Again
               </button>
               <button className="btn btn-primary" onClick={onClose}>
-                Done & Review Decks
+                Done
               </button>
             </div>
           </div>

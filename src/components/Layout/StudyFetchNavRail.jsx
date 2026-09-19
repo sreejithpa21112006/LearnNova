@@ -4,7 +4,6 @@ import {
   BookOpen, 
   Layers, 
   BrainCircuit, 
-  Radio, 
   FileQuestion, 
   History, 
   FolderKanban, 
@@ -16,8 +15,8 @@ import MascotSvg from '../Mascot/MascotSvg';
 /**
  * StudyFetchNavRail.jsx
  * 
- * Deep Burgundy Navigation Sidebar matching user's Burgundy + Ivory design:
- * - Brand header: "✦ LearnNova"
+ * Deep Burgundy Navigation Sidebar matching Burgundy + Ivory design:
+ * - Brand header: "LearnNova"
  * - Rounded pill nav buttons with clean icons & labels
  * - Bottom quote: "Small steps, big progress." with botanical line art
  */
@@ -32,9 +31,8 @@ export default function StudyFetchNavRail({
     { id: 'read', label: 'Reading', icon: BookOpen, tooltip: 'Document Reading with Adaptive Nudges' },
     { id: 'studio', label: 'Card Studio', icon: Layers, tooltip: 'Review & Curate Flashcards' },
     { id: 'study', label: 'Study Mode', icon: BrainCircuit, tooltip: 'Spaced Repetition Active Recall (FSRS)' },
-    { id: 'lecture', label: 'Lecture Lab', icon: Radio, tooltip: 'Lecture Lab (Audio, Video, Notes)' },
     { id: 'history', label: 'Study History', icon: History, tooltip: 'Traceback Past Study Sessions' },
-    { id: 'quiz', label: 'Practice Quiz', icon: FileQuestion, tooltip: 'Bloom\'s Diagnostic Quizzes' },
+    { id: 'quiz', label: 'Practice Quiz', icon: FileQuestion, tooltip: "Bloom's Diagnostic Quizzes" },
     { id: 'decks', label: 'My Decks', icon: FolderKanban, tooltip: 'Manage Study Sets & Decks' }
   ];
 

@@ -14,7 +14,6 @@ import {
   BookOpen, 
   Calendar, 
   GraduationCap,
-  Play,
   X,
   Flame,
   Award,
@@ -36,7 +35,6 @@ export default function StudyPlanView({
   onStartReadingTopic,
   onStartDiagnosticQuiz,
   onStartFlashcards,
-  onStartLectureLab,
   onOpenUpload
 }) {
   const [expandedTopic, setExpandedTopic] = useState(0);
@@ -150,20 +148,20 @@ export default function StudyPlanView({
           </button>
         </div>
 
-        {/* Card 3: Lecture Lab */}
+        {/* Card 3: Practice Quiz */}
         <div className="dashboard-quick-card">
           <div className="quick-card-icon-circle">
-            <Play size={20} />
+            <FileText size={20} />
           </div>
-          <div className="quick-card-title">Lecture Lab</div>
+          <div className="quick-card-title">Practice Quiz</div>
           <div className="quick-card-desc">
-            Paste a YouTube link and get summaries + questions.
+            Test your knowledge with Bloom's diagnostic quizzes.
           </div>
           <button 
             className="quick-card-btn"
-            onClick={() => onStartLectureLab?.()}
+            onClick={() => onStartDiagnosticQuiz?.(0)}
           >
-            <span>Open Lecture Lab</span>
+            <span>Start Quiz</span>
             <ArrowRight size={14} />
           </button>
         </div>
@@ -232,7 +230,7 @@ export default function StudyPlanView({
       {/* Set Header Bar */}
       <div className="set-header-bar">
         <div className="set-icon-box">
-          <GraduationCap size={28} color="#6366f1" />
+          <GraduationCap size={28} color="var(--accent)" />
         </div>
         <div className="set-meta">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -352,7 +350,7 @@ export default function StudyPlanView({
                                   setExpandedTopic(index + 1 < topics.length ? index + 1 : index);
                                 }}
                               >
-                                ⏭ Skip
+                                Skip
                               </button>
                             </div>
                           </div>
@@ -435,7 +433,7 @@ export default function StudyPlanView({
 
           {/* Add Syllabus Card */}
           <div className="dashboard-card">
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '0.88rem' }}>Add your syllabus ℹ️</h4>
+            <h4 style={{ margin: '0 0 4px 0', fontSize: '0.88rem' }}>Add your syllabus</h4>
             <p style={{ margin: '0 0 12px 0', fontSize: '0.78rem', color: 'var(--text-2)' }}>
               Tailor your study plan to your class schedule and priorities.
             </p>

@@ -3,12 +3,11 @@ import StudyFetchNavRail from './components/Layout/StudyFetchNavRail';
 import StudyFetchTopBar from './components/Layout/StudyFetchTopBar';
 import StudyFetchTutorSidebar from './components/Layout/StudyFetchTutorSidebar';
 import StudyPlanView from './components/StudyPlan/StudyPlanView';
-import LectureLabView from './components/LectureLab/LectureLabView';
 import ReadingView from './components/ReadingView';
 import DeckReviewModal from './components/DeckReviewModal';
 import StudyMode from './components/StudyMode';
 import DeckListView from './components/DeckListView';
-import PracticeExamModal from './components/LectureLab/PracticeExamModal';
+import PracticeExamModal from './components/PracticeExamModal';
 import StudyHistoryView from './components/History/StudyHistoryView';
 import CheckpointModal from './components/CheckpointModal';
 import UploadModal from './components/UploadModal';
@@ -35,7 +34,7 @@ import { generateSmartCheckpoint, shuffleQuizQuestion } from './services/tutorSe
 
 export default function App() {
   // Navigation & Preferences State
-  const [activeTab, setActiveTab] = useState('plan'); // 'plan' | 'lecture' | 'read' | 'studio' | 'study' | 'quiz' | 'decks'
+  const [activeTab, setActiveTab] = useState('plan'); // 'plan' | 'read' | 'studio' | 'study' | 'quiz' | 'history' | 'decks'
   const [theme] = useState('burgundy-ivory');
   const [settings, setSettings] = useState(getSettings());
   const [isTutorOpen, setIsTutorOpen] = useState(true);
@@ -359,30 +358,11 @@ export default function App() {
               onStartFlashcards={() => {
                 setActiveTab('studio');
               }}
-              onStartLectureLab={() => {
-                setActiveTab('lecture');
-              }}
               onOpenUpload={() => setIsUploadOpen(true)}
             />
           )}
 
-          {/* TAB 2: Ryne Lecture Lab */}
-          {activeTab === 'lecture' && (
-            <LectureLabView 
-              onOpenInReadingView={() => setActiveTab('read')}
-              onSaveGeneratedDeck={(deck) => {
-                const updated = saveDeck(deck);
-                setDecks(updated);
-                setActiveDeck(deck);
-              }}
-              onSwitchToStudio={(deck) => {
-                setActiveDeck(deck);
-                setActiveTab('studio');
-              }}
-            />
-          )}
-
-          {/* TAB 3: Reading & Attention Nudge Mode */}
+          {/* TAB 2: Reading & Attention Nudge Mode */}
           {activeTab === 'read' && (
             <ReadingView 
               documentData={currentDoc}
