@@ -165,3 +165,45 @@ export async function extractTextFromPdf(fileOrBuffer) {
     isScannedLikely
   };
 }
+
+/**
+ * Renders pages of a PDF to high-resolution JPEG Data URLs for Vision OCR
+ * @param {File | ArrayBuffer} fileOrBuffer
+ * @param {number} maxPages - Max pages to render (default 10)
+ * @param {number} scale - Render scale factor (default 1.8 for optimal OCR legibility)
+ * @returns {Promise<Array<string>>} Array of base64 data URLs
+ */
+export async function renderPdfPagesToImages(fileOrBuffer, maxPages = 10, scale = 1.8) {
+  let arrayBuffer;
+  if (fileOrBuffer instanceof File) {
+    arrayBuffer = await fileOrBuffer.arrayBuffer();
+  } else {
+    arrayBuffer = fileOrBuffer;
+  }
+
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const pdf = await loadingTask.promise;
+  const numPagesToRender = Math.min(pdf.numPages, maxPages);
+  const images = [];
+
+  for (let pageNum = 1; pageNum <= numPagesToRender; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    const renderContext = {
+      canvasContext: context,
+      viewport: viewport
+    };
+
+    await page.render(renderContext).promise;
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    images.push(dataUrl);
+  }
+
+  return images;
+}

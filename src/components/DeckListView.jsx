@@ -8,7 +8,8 @@ import {
   Layers, 
   Clock, 
   Plus,
-  BookOpen
+  BookOpen,
+  CheckCircle2
 } from 'lucide-react';
 import { getDeckStats, exportToAnkiTsv, downloadFile } from '../services/sm2Service';
 
@@ -90,8 +91,8 @@ export default function DeckListView({
                         ● {stats.due} Due Today
                       </span>
                     ) : (
-                      <span style={{ color: 'var(--green)', fontSize: '0.8rem', fontWeight: 600 }}>
-                        ✓ All Caught Up
+                      <span style={{ color: 'var(--accent)', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle2 size={13} color="var(--accent)" /> All Caught Up
                       </span>
                     )}
                   </div>

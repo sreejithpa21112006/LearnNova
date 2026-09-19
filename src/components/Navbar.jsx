@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   GraduationCap, 
   BookOpen, 
@@ -10,8 +10,11 @@ import {
   Sparkles, 
   Bot, 
   Sun, 
-  Moon 
+  Moon,
+  Flame,
+  Zap
 } from 'lucide-react';
+import { loadGamificationState, subscribeToRewards, getLevelInfo } from '../services/gamificationService';
 
 export default function Navbar({
   activeTab,
@@ -25,6 +28,16 @@ export default function Navbar({
   toggleTheme,
   dueCardsCount = 0
 }) {
+  const [gameState, setGameState] = useState(loadGamificationState);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToRewards(() => {
+      setGameState(loadGamificationState());
+    });
+    return unsubscribe;
+  }, []);
+
+  const levelInfo = getLevelInfo(gameState.xp);
   return (
     <header className="navbar-wrapper">
       <nav className="navbar-capsule">
@@ -93,6 +106,25 @@ export default function Navbar({
 
         {/* Right Actions */}
         <div className="nav-actions">
+          {/* Duolingo Streak Badge */}
+          <div 
+            className="nav-gamify-pill streak-pill" 
+            title={`${gameState.streakDays} Day Study Streak! Study daily to keep the flame alive.`}
+          >
+            <Flame size={15} className="streak-icon-active" />
+            <span className="pill-text">{gameState.streakDays}d</span>
+          </div>
+
+          {/* XP & Level Badge */}
+          <div 
+            className="nav-gamify-pill xp-pill" 
+            title={`Level ${levelInfo.level}: ${levelInfo.title} (${gameState.xp} Total XP, ${levelInfo.xpToNext} XP to Lvl ${levelInfo.level + 1})`}
+          >
+            <Zap size={14} className="xp-icon-active" />
+            <span className="pill-text">{gameState.xp} XP</span>
+            <span className="pill-lvl-tag">Lvl {levelInfo.level}</span>
+          </div>
+
           {/* Instant Avatar Toggle (FR10: visible, always available, zero confirmation dialog) */}
           <button 
             className={`avatar-toggle-btn ${isAvatarEnabled ? 'enabled' : ''}`}

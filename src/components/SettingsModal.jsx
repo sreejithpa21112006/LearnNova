@@ -3,13 +3,18 @@ import {
   Settings, 
   Sliders, 
   Eye, 
+  EyeOff,
   Sparkles, 
   Clock, 
   Layers, 
   X, 
   Key, 
+  Lock,
+  ShieldCheck,
   Save, 
-  CheckCircle2 
+  CheckCircle2,
+  Bot,
+  GraduationCap
 } from 'lucide-react';
 
 export default function SettingsModal({
@@ -19,6 +24,7 @@ export default function SettingsModal({
 }) {
   const [formData, setFormData] = useState({ ...settings });
   const [isSaved, setIsSaved] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -96,9 +102,75 @@ export default function SettingsModal({
             </p>
           </div>
 
+          {/* Spaced Repetition Algorithm */}
+          <div className="form-group">
+            <label className="form-label">Spaced Repetition Memory Algorithm</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                className={`btn ${formData.algorithm === 'fsrs' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFormData({ ...formData, algorithm: 'fsrs' })}
+                style={{ display: 'flex', flexDirection: 'column', padding: '10px 8px', textAlign: 'center' }}
+              >
+                <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>FSRS (Modern)</span>
+                <span style={{ fontSize: '0.68rem', opacity: 0.8 }}>Adaptive forgetting curves</span>
+              </button>
+              <button
+                type="button"
+                className={`btn ${formData.algorithm === 'sm2' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFormData({ ...formData, algorithm: 'sm2' })}
+                style={{ display: 'flex', flexDirection: 'column', padding: '10px 8px', textAlign: 'center' }}
+              >
+                <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>SM-2 (Classic)</span>
+                <span style={{ fontSize: '0.68rem', opacity: 0.8 }}>SuperMemo 2 multiplier</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Mascot Skin & Voice */}
+          <div className="form-group">
+            <label className="form-label">AI Mascot Companion Persona</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                className={`btn ${formData.mascotSkin === 'sparky-pup' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                onClick={() => setFormData({ ...formData, mascotSkin: 'sparky-pup' })}
+              >
+                <Bot size={15} />
+                <span>Sparky (Companion)</span>
+              </button>
+              <button
+                type="button"
+                className={`btn ${formData.mascotSkin === 'duo-owl' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                onClick={() => setFormData({ ...formData, mascotSkin: 'duo-owl' })}
+              >
+                <GraduationCap size={15} />
+                <span>Nova (Scholar)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Voice Speech Synthesis Toggle */}
+          <div className="form-group" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <label className="form-label" style={{ margin: 0 }}>Mascot Voice Synthesis</label>
+              <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--text-3)' }}>Speak encouraging lines and explanations aloud</p>
+            </div>
+            <button
+              type="button"
+              className={`btn ${formData.isMascotVoiceEnabled ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+              onClick={() => setFormData({ ...formData, isMascotVoiceEnabled: !formData.isMascotVoiceEnabled })}
+            >
+              {formData.isMascotVoiceEnabled ? 'Voice ON' : 'Muted'}
+            </button>
+          </div>
+
           {/* Default Card Density */}
           <div className="form-group">
-            <label className="form-label">Default Flashcard Density (PRD FR14)</label>
+            <label className="form-label">Default Flashcard Density</label>
             <select
               className="form-select"
               value={formData.cardDensity}
@@ -119,7 +191,7 @@ export default function SettingsModal({
               </label>
               {formData.geminiApiKey ? (
                 <span style={{ fontSize: '0.72rem', color: 'var(--green)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <CheckCircle2 size={12} /> Key Connected
+                  <CheckCircle2 size={12} /> Key Connected & Masked
                 </span>
               ) : (
                 <a
@@ -134,36 +206,72 @@ export default function SettingsModal({
             </div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <input 
-                type="text"
+                type={showApiKey ? "text" : "password"}
                 placeholder="AIzaSy... (paste your Gemini API key here)"
                 value={formData.geminiApiKey || ''}
                 onChange={(e) => setFormData({ ...formData, geminiApiKey: e.target.value.trim() })}
                 className="form-input" 
-                style={{ width: '100%', paddingRight: '36px', fontFamily: 'var(--mono)', fontSize: '0.82rem' }}
+                autoComplete="off"
+                spellCheck="false"
+                style={{ 
+                  width: '100%', 
+                  paddingRight: formData.geminiApiKey ? '72px' : '40px', 
+                  fontFamily: showApiKey ? 'var(--mono)' : 'sans-serif', 
+                  fontSize: '0.84rem',
+                  letterSpacing: showApiKey ? 'normal' : '0.18em'
+                }}
               />
-              {formData.geminiApiKey && (
+              <div style={{ position: 'absolute', right: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, geminiApiKey: '' })}
+                  onClick={() => setShowApiKey(!showApiKey)}
                   style={{
-                    position: 'absolute',
-                    right: '10px',
-                    background: 'none',
+                    background: 'transparent',
                     border: 'none',
-                    color: 'var(--text-3)',
+                    color: showApiKey ? 'var(--accent)' : 'var(--text-3)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '2px'
+                    justifyContent: 'center',
+                    padding: '4px 6px',
+                    borderRadius: '4px',
+                    transition: 'color 0.15s ease'
                   }}
-                  title="Clear key"
+                  title={showApiKey ? "Hide key (mask with bullets)" : "Reveal key"}
+                  aria-label={showApiKey ? "Hide key" : "Show key"}
                 >
-                  <X size={14} />
+                  {showApiKey ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
-              )}
+                {formData.geminiApiKey && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, geminiApiKey: '' })}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-3)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '4px',
+                      borderRadius: '4px'
+                    }}
+                    title="Clear key"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
             </div>
-            <p style={{ fontSize: '0.76rem', color: 'var(--text-3)', marginTop: '8px', lineHeight: 1.45 }}>
-              Enter your Gemini API key to unlock full conversational AI answers, structured bullet points, and high-yield synthesis. Leave blank to use the built-in offline NLP engine.
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginTop: '9px', fontSize: '0.72rem', color: 'var(--text-2)', lineHeight: 1.4 }}>
+              <ShieldCheck size={14} color="var(--green)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span>
+                <strong>Client-Side Protected:</strong> Stored strictly in your browser's local sandbox. Never sent to any custom server or third-party loggers.
+              </span>
+            </div>
+            <p style={{ fontSize: '0.74rem', color: 'var(--text-3)', marginTop: '6px', lineHeight: 1.45 }}>
+              Unlocks conversational AI, intelligent card generation, and adaptive tutor reasoning. Leave blank to run 100% offline via local NLP.
             </p>
           </div>
 

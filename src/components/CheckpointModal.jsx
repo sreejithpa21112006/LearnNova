@@ -8,6 +8,9 @@ import {
   HelpCircle,
   BookmarkPlus
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import MascotSvg from './Mascot/MascotSvg';
+import { speakMascotVoice } from '../services/tutorService';
 
 export default function CheckpointModal({
   checkpointData,
@@ -34,6 +37,16 @@ export default function CheckpointModal({
     if (isAnswered) return;
     setSelectedOption(idx);
     setIsAnswered(true);
+
+    if (idx === correctIndex) {
+      try {
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.6 }
+        });
+      } catch (e) {}
+    }
   };
 
   const handleContinue = () => {
@@ -96,24 +109,29 @@ export default function CheckpointModal({
           })}
         </div>
 
-        {/* Feedback & Explanation */}
+        {/* Feedback & Explanation with Mascot */}
         {isAnswered && (
-          <div className="checkpoint-explanation">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              {isCorrect ? (
-                <strong style={{ color: 'var(--green)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <CheckCircle2 size={16} /> Spot on!
-                </strong>
-              ) : (
-                <strong style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <XCircle size={16} /> Key Concept to Reinforce
-                </strong>
-              )}
-              <span style={{ fontSize: '0.76rem', color: 'var(--accent)', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <BookmarkPlus size={13} /> Queued for Spaced Repetition Deck
-              </span>
+          <div className="checkpoint-explanation" style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+            <div style={{ flexShrink: 0, marginTop: '4px' }}>
+              <MascotSvg state={isCorrect ? 'cheering' : 'thinking'} size={48} />
             </div>
-            <p style={{ margin: 0 }}>{explanation}</p>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                {isCorrect ? (
+                  <strong style={{ color: 'var(--green)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle2 size={16} /> Spot on!
+                  </strong>
+                ) : (
+                  <strong style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <XCircle size={16} /> Key Concept to Reinforce
+                  </strong>
+                )}
+                <span style={{ fontSize: '0.76rem', color: 'var(--accent)', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <BookmarkPlus size={13} /> Queued for Spaced Repetition Deck
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.84rem', lineHeight: 1.5 }}>{explanation}</p>
+            </div>
           </div>
         )}
 

@@ -1,6 +1,21 @@
+import { calculateFSRS } from './fsrsService';
+
 /**
- * SuperMemo SM-2 Spaced Repetition Algorithm & Deck Analytics
+ * SuperMemo SM-2 & FSRS Spaced Repetition Algorithms & Deck Analytics
  */
+
+/**
+ * Universal Card Review Dispatcher
+ * @param {Object} card 
+ * @param {number} grade (0-5)
+ * @param {string} algorithm ('sm2' | 'fsrs')
+ */
+export function calculateCardReview(card, grade, algorithm = 'sm2') {
+  if (algorithm === 'fsrs' || card.algorithm === 'fsrs') {
+    return calculateFSRS(card, grade);
+  }
+  return calculateSM2(card, grade);
+}
 
 /**
  * Calculates updated SM-2 scheduling parameters given a user grade (0-5)

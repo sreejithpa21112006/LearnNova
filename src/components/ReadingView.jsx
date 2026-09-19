@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   CheckCircle,
   Clock,
@@ -7,8 +7,15 @@ import {
   FileText,
   BookOpen,
   HelpCircle,
-  BarChart2
+  BarChart2,
+  Zap,
+  CheckCircle2,
+  XCircle,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { awardXp } from '../services/gamificationService';
 
 export default function ReadingView({
   documentData,
@@ -19,8 +26,13 @@ export default function ReadingView({
   onSelectChunk,
   onGenerateDeck,
   onTriggerCheckpointManual,
-  checkpointsAnswered = new Set()
+  checkpointsAnswered = new Set(),
+  getCheckpointForChunk,
+  onCompleteCheckpoint
 }) {
+  const [openCheckpointIdx, setOpenCheckpointIdx] = useState(null);
+  const [inlineData, setInlineData] = useState({});
+  const [inlineAnswers, setInlineAnswers] = useState({});
   const totalWords = chunks.reduce((acc, c) => acc + (c.wordCount || 0), 0);
   const totalDwellSpent = Object.values(dwellTimes).reduce((a, b) => a + b, 0);
   const completedChunksCount = Object.values(chunkStatus).filter(s => s === 'completed').length;
@@ -49,6 +61,55 @@ export default function ReadingView({
       </div>
     );
   }
+
+  const handleToggleInlineCheckpoint = (idx, e) => {
+    e.stopPropagation();
+    if (openCheckpointIdx === idx) {
+      setOpenCheckpointIdx(null);
+    } else {
+      if (!inlineData[idx] && getCheckpointForChunk) {
+        const cp = getCheckpointForChunk(idx);
+        if (cp) {
+          setInlineData(prev => ({ ...prev, [idx]: cp }));
+        }
+      }
+      setOpenCheckpointIdx(idx);
+    }
+  };
+
+  const handleAnswerInline = (chunkIdx, optIdx, e) => {
+    e.stopPropagation();
+    const cp = inlineData[chunkIdx];
+    if (!cp || inlineAnswers[chunkIdx]) return;
+
+    const isCorrect = optIdx === cp.correctIndex;
+    setInlineAnswers(prev => ({
+      ...prev,
+      [chunkIdx]: { selectedOption: optIdx, isCorrect }
+    }));
+
+    if (isCorrect) {
+      try {
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+      } catch (err) {}
+      awardXp('checkpoint_correct', 25, '+25 XP Checkpoint Mastered!');
+    } else {
+      awardXp('checkpoint_correct', 10, '+10 XP Keep Practicing!');
+    }
+
+    if (onCompleteCheckpoint) {
+      onCompleteCheckpoint({
+        chunkIndex: chunkIdx,
+        chunkTitle: cp.chunkTitle || `Section ${chunkIdx + 1}`,
+        question: cp.question,
+        options: cp.options,
+        correctIndex: cp.correctIndex,
+        userAnswerIndex: optIdx,
+        isCorrect,
+        explanation: cp.explanation
+      });
+    }
+  };
 
   return (
     <div className="document-reader-pane">
@@ -104,7 +165,7 @@ export default function ReadingView({
       {/* Section Cards */}
       {chunks.map((chunk, idx) => {
         const isActive = idx === activeChunkIndex;
-        const isCompleted = chunkStatus[idx] === 'completed' || checkpointsAnswered.has(idx);
+        const isCompleted = chunkStatus[idx] === 'completed' || checkpointsAnswered.has(idx) || inlineAnswers[idx];
         const dwell = dwellTimes[idx] || 0;
         const targetDwell = chunk.expectedDwellSeconds || 30;
         const miniPercent = Math.min(100, Math.round((dwell / targetDwell) * 100));
@@ -156,34 +217,101 @@ export default function ReadingView({
               {formatChunkMarkdown(chunk.content)}
             </div>
 
-            {chunk.keyTerms && chunk.keyTerms.length > 0 && (
-              <div className="chunk-keyterms">
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>
-                  Key Concepts:
-                </span>
-                {chunk.keyTerms.map((term, tIdx) => (
-                  <span key={tIdx} className="keyterm-pill">#{term}</span>
-                ))}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTriggerCheckpointManual(idx);
-                  }}
-                  style={{
-                    marginLeft: 'auto',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--accent)',
-                    fontSize: '0.76rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <HelpCircle size={13} /> Checkpoint
-                </button>
+            {/* Section Footer: Key concepts + Inline Micro-Checkpoint Trigger */}
+            <div className="chunk-keyterms">
+              {chunk.keyTerms && chunk.keyTerms.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>
+                    Concepts:
+                  </span>
+                  {chunk.keyTerms.map((term, tIdx) => (
+                    <span key={tIdx} className="keyterm-pill">#{term}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* Duolingo-style Pull Checkpoint Trigger */}
+              <div style={{ marginLeft: 'auto' }}>
+                {isCompleted || checkpointsAnswered.has(idx) || inlineAnswers[idx] ? (
+                  <span className="inline-checkpoint-completed-tag">
+                    <CheckCircle2 size={13} color="var(--green)" />
+                    <span>+25 XP Mastered</span>
+                  </span>
+                ) : (
+                  <button
+                    className="inline-checkpoint-toggle-btn"
+                    onClick={(e) => handleToggleInlineCheckpoint(idx, e)}
+                    title="Take an optional 5-second checkpoint for +25 XP"
+                  >
+                    <Zap size={13} color="#eab308" />
+                    <span>Quick Check (+25 XP)</span>
+                    {openCheckpointIdx === idx ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Inline Micro-Challenge Card (Zero Modal Interruption!) */}
+            {openCheckpointIdx === idx && inlineData[idx] && (
+              <div className="inline-checkpoint-container" onClick={(e) => e.stopPropagation()}>
+                <div className="inline-checkpoint-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Zap size={14} color="#eab308" />
+                    <span style={{ fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--accent)' }}>
+                      5-Second Micro Challenge
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-3)' }}>
+                    Earn +25 XP
+                  </span>
+                </div>
+
+                <div className="inline-checkpoint-question">
+                  {inlineData[idx].question}
+                </div>
+
+                <div className="inline-checkpoint-options">
+                  {inlineData[idx].options.map((opt, optIdx) => {
+                    const answered = inlineAnswers[idx];
+                    let optClass = 'inline-opt-btn';
+                    if (answered) {
+                      if (optIdx === inlineData[idx].correctIndex) optClass += ' correct';
+                      else if (optIdx === answered.selectedOption) optClass += ' wrong';
+                    }
+
+                    return (
+                      <button
+                        key={optIdx}
+                        className={optClass}
+                        onClick={(e) => handleAnswerInline(idx, optIdx, e)}
+                        disabled={!!answered}
+                      >
+                        <span className="inline-opt-badge">
+                          {String.fromCharCode(65 + optIdx)}
+                        </span>
+                        <span style={{ flex: 1 }}>{opt}</span>
+                        {answered && optIdx === inlineData[idx].correctIndex && (
+                          <CheckCircle2 size={15} color="var(--green)" />
+                        )}
+                        {answered && optIdx === answered.selectedOption && optIdx !== inlineData[idx].correctIndex && (
+                          <XCircle size={15} color="var(--red)" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {inlineAnswers[idx] && (
+                  <div className="inline-checkpoint-feedback">
+                    <strong style={{ color: inlineAnswers[idx].isCorrect ? 'var(--green)' : 'var(--red)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.82rem', marginBottom: '4px' }}>
+                      {inlineAnswers[idx].isCorrect ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                      {inlineAnswers[idx].isCorrect ? 'Spot on! (+25 XP earned)' : 'Good effort! (+10 XP)'}
+                    </strong>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-2)' }}>
+                      {inlineData[idx].explanation}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </article>

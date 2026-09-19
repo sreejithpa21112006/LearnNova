@@ -22,11 +22,13 @@ export class EngagementTracker {
     this.onNudge = options.onNudge || (() => {});
     this.onCheckpoint = options.onCheckpoint || (() => {});
     this.onProgressUpdate = options.onProgressUpdate || (() => {});
+    this.onSectionCompleted = options.onSectionCompleted || (() => {});
 
     // Internal State
     this.activeChunkIndex = 0;
     this.chunkDwellTimes = {}; // chunkIndex -> seconds
     this.chunkStatus = {}; // chunkIndex -> 'unread' | 'reading' | 'completed'
+    this.rewardedChunks = new Set();
     this.lastScrollTop = 0;
     this.lastScrollTime = Date.now();
     this.scrollVelocity = 0;
@@ -80,6 +82,7 @@ export class EngagementTracker {
 
   updateChunks(chunks) {
     this.chunks = chunks;
+    this.rewardedChunks = new Set();
     this.chunks.forEach((_, idx) => {
       if (!this.chunkDwellTimes[idx]) this.chunkDwellTimes[idx] = 0;
       if (!this.chunkStatus[idx]) this.chunkStatus[idx] = idx === 0 ? "reading" : "unread";
@@ -174,10 +177,8 @@ export class EngagementTracker {
 
       if (prevChunk && prevDwell < skimThreshold && this.scrollVelocity > 450) {
         this.handleSkimmingDetected(prevIndex, prevChunk);
-      } else {
-        // Normal transition: trigger section checkpoint if not already taken
-        this.checkTriggerCheckpoint(prevIndex);
       }
+      // Zero involuntary popups: checkpoints are non-blocking inline micro-challenges!
     }
   }
 
@@ -272,6 +273,17 @@ export class EngagementTracker {
       this.chunkDwellTimes[this.activeChunkIndex] = 0;
     }
     this.chunkDwellTimes[this.activeChunkIndex] += 1;
+
+    // Check if user has read this chunk for the target dwell time
+    const activeChunk = this.chunks[this.activeChunkIndex];
+    const minDwell = activeChunk?.minDwellSeconds || 10;
+    if (activeChunk && this.chunkDwellTimes[this.activeChunkIndex] >= minDwell) {
+      if (!this.rewardedChunks.has(this.activeChunkIndex)) {
+        this.rewardedChunks.add(this.activeChunkIndex);
+        this.chunkStatus[this.activeChunkIndex] = "completed";
+        this.onSectionCompleted(this.activeChunkIndex, activeChunk);
+      }
+    }
 
     // Check idle time
     this.idleSeconds += 1;

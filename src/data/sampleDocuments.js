@@ -79,36 +79,36 @@ Because a committed entry must be present on a majority of servers, and a candid
         chunkIndex: 0,
         question: "What is the primary motivation behind Raft's design compared to Multi-Paxos?",
         options: [
-          "Raft was designed primarily for understandability and clear problem decomposition",
           "Raft achieves sub-millisecond network round trips using UDP",
           "Raft eliminates the need for majority quorums in cluster elections",
+          "Raft was designed primarily for understandability and clear problem decomposition",
           "Raft allows multiple leaders to write concurrently to different partitions"
         ],
-        correctIndex: 0,
+        correctIndex: 2,
         explanation: "Raft was created by Ongaro and Ousterhout with an explicit focus on understandability, decomposing consensus into Leader Election, Log Replication, and Safety."
       },
       {
         chunkIndex: 2,
         question: "How does Raft avoid perpetual split-vote stalemates during leader elections?",
         options: [
-          "By employing randomized election timeouts (e.g. 150ms-300ms)",
           "By selecting the node with the lowest IP address as dictator",
+          "By employing randomized election timeouts (e.g. 150ms-300ms)",
           "By falling back to a centralized ZooKeeper coordinator",
           "By doubling the term number every 10 milliseconds"
         ],
-        correctIndex: 0,
+        correctIndex: 1,
         explanation: "Randomized election timeouts (150-300ms) stagger the timeouts so one candidate almost always times out first, gathers a majority, and asserts leadership before others."
       },
       {
         chunkIndex: 4,
         question: "What is the condition for a Raft follower to grant its vote to a candidate in RequestVote RPC?",
         options: [
-          "The candidate's log must be at least as up-to-date as the follower's own log",
           "The candidate must have completed a write operation in the last second",
           "The candidate must be located in the primary availability zone",
-          "The candidate must have processed fewer total terms than the cluster average"
+          "The candidate must have processed fewer total terms than the cluster average",
+          "The candidate's log must be at least as up-to-date as the follower's own log"
         ],
-        correctIndex: 0,
+        correctIndex: 3,
         explanation: "The Election Restriction mandates that a candidate's log must be at least as up-to-date (higher last term, or longer log if terms match) to ensure it holds all committed entries."
       }
     ]
@@ -189,12 +189,12 @@ When RAM is saturated and a new page must be loaded, the OS must select a victim
         chunkIndex: 1,
         question: "Why do modern 64-bit operating systems use multi-level page tables instead of a single flat linear array?",
         options: [
-          "To avoid allocating page table pages for large unused spans of virtual address space",
           "Because linear arrays cannot be stored on NVMe SSD drives",
+          "To avoid allocating page table pages for large unused spans of virtual address space",
           "To enable encryption of virtual memory frames with AES-256",
           "Because 64-bit CPUs do not support pointer arithmetic"
         ],
-        correctIndex: 0,
+        correctIndex: 1,
         explanation: "Multi-level page tables form a tree; unallocated virtual memory ranges require no subtree allocation, reducing memory footprint from 512 GB to a few kilobytes."
       },
       {
@@ -213,13 +213,13 @@ When RAM is saturated and a new page must be loaded, the OS must select a victim
         chunkIndex: 4,
         question: "How does the Clock (Second-Chance) page replacement algorithm approximate LRU efficiently?",
         options: [
-          "It uses a circular pointer and clears the reference bit on pass; pages with 0 are evicted",
           "It records exact 64-bit timestamps on every memory instruction",
           "It randomly evicts any page that has been in memory for over 60 seconds",
+          "It uses a circular pointer and clears the reference bit on pass; pages with 0 are evicted",
           "It requires the programmer to explicitly tag unneeded variables in source code"
         ],
-        correctIndex: 0,
-        explanation: "The Clock algorithm sweeps through page frames in a circle; if reference bit is 1, it sets it to 0 (second chance). The first page with 0 is evicted."
+        correctIndex: 2,
+        explanation: "Clock keeps a circular buffer with a reference bit per page. Referenced pages get a second chance (bit cleared); the first unreferenced (0) page found is evicted."
       }
     ]
   },
@@ -296,24 +296,24 @@ Over time, flushing SSTables accumulates hundreds of files on disk, causing read
         chunkIndex: 1,
         question: "Why do B+ Tree engines suffer from high Write Amplification on small row updates?",
         options: [
-          "Modifying even a few bytes requires flushing the entire 8KB/16KB page to disk alongside WAL writes",
           "B+ Trees encrypt every row with three separate cryptographic keys",
           "Leaf nodes must be reconstructed completely from scratch upon every insert",
-          "B+ Trees require replicating data across at least 5 secondary indexes"
+          "B+ Trees require replicating data across at least 5 secondary indexes",
+          "Modifying even a few bytes requires flushing the entire 8KB/16KB page to disk alongside WAL writes"
         ],
-        correctIndex: 0,
+        correctIndex: 3,
         explanation: "Because B+ Trees update in-place on fixed pages (8-16KB), writing a tiny update causes an entire page write plus WAL entry, multiplying physical I/O."
       },
       {
         chunkIndex: 2,
         question: "How do LSM-Trees handle record deletion without modifying immutable SSTables on disk?",
         options: [
-          "They write an append-only 'Tombstone' marker that shadows earlier versions until compaction",
           "They immediately truncate the SSTable file at the deleted record's offset",
+          "They write an append-only 'Tombstone' marker that shadows earlier versions until compaction",
           "They rewrite the entire database partition synchronously on the delete call",
           "They trigger a hardware interrupt that zeroes out the disk sectors"
         ],
-        correctIndex: 0,
+        correctIndex: 1,
         explanation: "LSM-Trees append a Tombstone marker. Future reads see the tombstone and treat the key as deleted; physical removal happens later during SSTable compaction."
       },
       {
